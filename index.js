@@ -3,18 +3,38 @@ const incrementSchema = new mongoose.Schema({
   model: String,
   count: Number
 });
-const Increment = mongoose.model('Increment', incrementSchema);
+var Increment;
+exports.initialize = function (connection) {
+  try {
+    Increment = connection.model('Increment');
+  } catch (ex) {
+    if (ex.name === 'MissingSchemaError') {
+      Increment = connection.model('Increment', incrementSchema);
+    }
+    else
+      throw ex;
+  }
+};
 
 exports.plugin = function(schema, options) {
-  const model = options.model;
-  fields = {}, // A hash of fields to add properties to in Mongoose.
-  fields[options.field] = {
+  if (!incrementSchema || !Increment) throw new Error("mongoose-id-autoincrement has not been initialized");
+
+  var settings = {
+    model: null, // The model to configure the plugin for.
+    field: '_id', // The field the plugin should track.
+    unique: true // Should we create a unique index for the field
+  },
+
+  settings = options;
+
+  const model = settings.model;
+  fields = {}, 
+  fields[settings.field] = {
     type: Number,
     require: true
   };
-  fields[options.field].unique = true;
+  fields[settings.field].unique = settings.unique;
   schema.add(fields);
-  // schema.add({ unique_id: Number });
 
   schema.pre('save', function (next) {
     const user = this;
